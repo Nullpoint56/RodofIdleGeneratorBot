@@ -6,26 +6,24 @@ services:
       context: .
       target: dev
     image: rodofbot:dev
+    container_name: rodofbot
     volumes:
-      - ./src:/app/src
-    environment:
-      # Bot config
-      - BOT__TOKEN=${BOT__TOKEN}
-      - BOT__COMMAND_PREFIX=${BOT__COMMAND_PREFIX}
-
-      # Sentry
-      - SENTRY__ENABLE=${SENTRY__ENABLE}
-      - SENTRY__DSN=${SENTRY__DSN}
-      - SENTRY__SEND_PII=${SENTRY__SEND_PII}
-      - SENTRY__TRACES_SAMPLE_RATE=${SENTRY__TRACES_SAMPLE_RATE}
-      - SENTRY__PROFILING_SAMPLE_RATE=${SENTRY__PROFILING_SAMPLE_RATE}
-
-      # Paths
-      - PATHS__DATA_DIR=${PATHS__DATA_DIR}
-      - PATHS__LOGS_DIR=${PATHS__LOGS_DIR}
-      - PATHS__QUOTES_FILE=${PATHS__QUOTES_FILE}
-      - PATHS__QUOTES_INDEX_FILE=${PATHS__QUOTES_INDEX_FILE}
-
-      # AI
-      - AI__EMBEDDING_MODEL=${AI__EMBEDDING_MODEL}
+      - ./src:/app/src  # live reloadable code
+    depends_on:
+      - pgvector
     command: ["python", "-m", "src.bot"]
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: pgvector
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${VECTOR_STORE__DBNAME}
+      POSTGRES_USER: ${VECTOR_STORE__USER}
+      POSTGRES_PASSWORD: ${VECTOR_STORE__PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./enable_pgvector_extension.sql:/docker-entrypoint-initdb.d/enable_pgvector_extension.sql:ro # Enable PGVector
+    ports:
+      - "5432:5432"
+volumes:
+  pgdata:
